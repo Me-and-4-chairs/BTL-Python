@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Dự báo giá cổ phiếu</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 30px;
+            background-color: #f9f9f9;
+        }
+        h1 {
+            color: #333;
+            margin-bottom: 20px;
+        }
+        form {
+            margin-bottom: 20px;
+            position: relative;
+        }
+        #symbolInput {
+            width: 300px;
+            padding: 10px;
+            font-size: 16px;
+        }
+        button {
+            padding: 10px 15px;
+            font-size: 16px;
+            margin-left: 10px;
+            cursor: pointer;
+        }
+        #suggestions {
+            border: 1px solid #ccc;
+            max-height: 150px;
+            overflow-y: auto;
+            background: white;
+            position: absolute;
+            z-index: 1000;
+            width: 300px;
+            display: none;
+        }
+        #suggestions .item {
+            padding: 8px 12px;
+            cursor: pointer;
+        }
+        #suggestions .item:hover {
+            background-color: #e0e0e0;
+        }
+        .error {
+            color: red;
+            margin-bottom: 20px;
+        }
+        .inactive-msg {
+            color: orange;
+            font-weight: bold;
+            margin-bottom: 20px;
+        }
+    </style>
+</head>
+<body>
+    <h1>Dự báo giá cổ phiếu</h1>
+
+    <form method="post" autocomplete="off" id="searchForm">
+        <input type="text" id="symbolInput" name="symbol" placeholder="Nhập mã cổ phiếu..." value="{{ symbol or '' }}" autocomplete="off" aria-label="Mã cổ phiếu" />
+        <button type="submit">Dự báo</button>
+        <div id="suggestions"></div>
+    </form>
+
+    {% if error %}
+        <div class="error">{{ error }}</div>
+    {% endif %}
+
+    {% if inactive_msg %}
+        <div class="inactive-msg">{{ inactive_msg }}</div>
+    {% endif %}
+
+    {% if plot_html %}
+        <div>
+            {{ plot_html|safe }}
+        </div>
+    {% endif %}
+
+    <script>
+        const input = document.getElementById("symbolInput");
+        const suggestions = document.getElementById("suggestions");
+        const form = document.getElementById("searchForm");
+
+        input.addEventListener("input", async () => {
+            const val = input.value.trim();
+            if (val.length === 0) {
+                suggestions.style.display = "none";
+                return;
+            }
+            try {
+                const res = await fetch(`/autocomplete?q=${val}`);
+                const data = await res.json();
+                if (data.length === 0) {
+                    suggestions.style.display = "none";
+                    return;
+                }
+                suggestions.innerHTML = data.map(t => `<div class="item">${t}</div>`).join("");
+                suggestions.style.display = "block";
+
+                const rect = input.getBoundingClientRect();
+                suggestions.style.width = rect.width + "px";
+                suggestions.style.top = (input.offsetTop + input.offsetHeight) + "px";
+                suggestions.style.left = input.offsetLeft + "px";
+            } catch (err) {
+                console.error(err);
+                suggestions.style.display = "none";
+            }
+        });
+
+        suggestions.addEventListener("click", (e) => {
+            if (e.target.classList.contains("item")) {
+                input.value = e.target.textContent;
+                suggestions.style.display = "none";
+                form.submit();
+            }
+        });
+
+        document.addEventListener("click", (e) => {
+            if (!suggestions.contains(e.target) && e.target !== input) {
+                suggestions.style.display = "none";
+            }
+        });
+    </script>
+</body>
+</html>
